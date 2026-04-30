@@ -1,0 +1,183 @@
+#####################################################################
+#  HWIDBan-Velocity — Full feature parity with Paper plugin
+#  Stesso schema database del plugin Paper: condividi MySQL/SQLite
+#  per propagare i ban da/verso ogni backend.
+#####################################################################
+
+settings:
+  prefix: "&8[&6HWIDBan&8]&r "
+  debug: false
+
+# ─── Database ──────────────────────────────────────────────────────
+database:
+  type: "SQLITE"           # SQLITE oppure MYSQL
+  sqlite:
+    file: "hwidban.db"
+  mysql:
+    host: "localhost"
+    port: 3306
+    database: "hwidban"
+    username: "root"
+    password: ""
+    use-ssl: false
+    pool-size: 10
+  tables:
+    bans:         "hwidban_bans"
+    fingerprints: "hwidban_fingerprints"
+    whitelist:    "hwidban_whitelist"
+
+# ─── GeoIP (ip-api.com per default — free 45 req/min) ─────────────
+geoip:
+  api-url: "http://ip-api.com/json/{ip}?fields=country,city,isp,as,query"
+  timeout: 5
+  cache-ttl-minutes: 60
+
+# ─── Fingerprint ───────────────────────────────────────────────────
+fingerprint:
+  subnet-mask: 20          # /20 = ~4096 IP per subnet (cattura ISP residenziali)
+
+# ─── Sicurezza ─────────────────────────────────────────────────────
+security:
+  watch-mode: false        # logga senza kickare (utile per testare)
+
+  rate-limit:
+    enabled: true
+    max-attempts: 10
+    window-seconds: 60
+
+  auto-alt:
+    enabled: false         # ban automatico se stesso fingerprint su N+ account
+    threshold: 4
+    duration: "30d"        # oppure "perm"
+    reason: "Auto-ban: multi-account abuse (%count% accounts)"
+
+# ─── Discord webhook (opzionale) ───────────────────────────────────
+discord:
+  enabled: false
+  webhook-url: ""
+  username: "HWIDBan"
+  avatar-url: ""
+
+# ─── Redis sync multi-proxy (opzionale) ────────────────────────────
+sync:
+  redis:
+    enabled: false
+    host: "localhost"
+    port: 6379
+    password: ""
+    channel: "hwidban-sync"
+
+# ─── Integrazioni ──────────────────────────────────────────────────
+# LiteBans: quando un admin usa /ban, /tempban, /ipban → banna anche per HWID.
+# Se Paper e Velocity condividono lo stesso DB, BASTA UNA sola integrazione attiva
+# (consigliato: solo Velocity → cattura i ban prima del backend).
+integrations:
+  litebans:
+    enabled: true
+    types: [ "ban", "ipban" ]      # tipi che propagano l'HWID ban
+    sync-duration: true             # /tempban 30d → HWID tempban 30d
+    auto-unban: true                # /unban → rimuove anche HWID ban
+    reason-prefix: "[LiteBans] "
+
+# ─── Default ban reason ────────────────────────────────────────────
+ban:
+  default-reason: "Banned by administrator"
+
+# ─── Messaggi ──────────────────────────────────────────────────────
+messages:
+  prefix: "&8[&6HWIDBan&8]&r "
+  no-permission:    "&c[HWIDBan] You don't have permission."
+  invalid-usage:    "&c[HWIDBan] Usage: %usage%"
+  player-not-found: "&c[HWIDBan] Player '%player%' not found."
+
+  kick:
+    banned: |-
+      &c&l⚠ YOU ARE BANNED ⚠
+      &7
+      &7Reason: &f%reason%
+      &7Admin:  &f%admin%
+      &7Date:   &f%date%
+      &7
+      &8Fingerprint: &7%fingerprint%
+    tempbanned: |-
+      &6&l⚠ TEMPORARY BAN ⚠
+      &7
+      &7Reason:  &f%reason%
+      &7Admin:   &f%admin%
+      &7Expires: &f%expires%
+      &7Time left: &e%duration%
+      &7
+      &8Fingerprint: &7%fingerprint%
+    rate-limited: "&cToo many login attempts. Please wait."
+
+  ban:
+    success:   "&a[HWIDBan] Banned &e%player% &afor: &f%reason%"
+    already:   "&e[HWIDBan] %player% is already banned."
+    not-found: "&c[HWIDBan] Player '%player%' not found (must be online)."
+    broadcast: "&8[&cBAN&8] &c%player% &7banned by &c%admin% &7— reason: &f%reason%"
+
+  tempban:
+    success:   "&a[HWIDBan] TempBanned &e%player% &afor &f%duration% &a— reason: &f%reason%"
+    broadcast: "&8[&6TEMPBAN&8] &c%player% &7tempbanned by &c%admin% &7for &f%duration%"
+
+  unban:
+    success:    "&a[HWIDBan] Unbanned &e%target%"
+    not-banned: "&e[HWIDBan] '%target%' is not banned."
+    broadcast:  "&8[&aUNBAN&8] &a%player% &7unbanned by &a%admin%"
+
+  list:
+    header: "&8--- &6HWIDBan List &7(last %count%) &8---"
+    line:   "&7%date% &e%player% &7fp:&8%fpshort% &7by:&f%admin% %status%"
+    empty:  "&7No bans found."
+
+  check:
+    header:    "&8--- &6Fingerprint of &e%player% &8---"
+    line:      "&8• &7%key%: &f%value%"
+    hash:      "&8• &7Hash: &b%hash%"
+    not-found: "&c[HWIDBan] Player must be online to check fingerprint."
+
+  alt:
+    header: "&8--- &6Alts of &e%player% &7(fp:&8%fpshort%&7) &8--- &7%count% found"
+    line:   "&8• &e%player% &7uuid:&8%uuid% &7last:&f%last-seen% banned:%banned%"
+    empty:  "&7No alts found."
+
+  history:
+    header: "&8--- &6Fingerprint History of &e%player% &8---"
+    line:   "&7%date% &8• &b%fpshort% &7last:&f%last-seen%"
+    empty:  "&7No fingerprint history found."
+
+  info:
+    header:      "&8--- &6Player Info: &e%player% &8---"
+    online:      "&7Online: &a%online%"
+    uuid:        "&7UUID: &f%uuid%"
+    fp-count:    "&7Fingerprints: &f%count%"
+    ban-status:  "&7Ban Status: %status%"
+    ban-reason:  "&7Reason: &f%reason%"
+    ban-by:      "&7Banned by: &f%admin%"
+    ban-expires: "&7Expires: &f%expires%"
+
+  stats:
+    header:       "&8--- &6HWIDBan Statistics &8---"
+    total-bans:   "&7Total bans: &f%total%"
+    active-bans:  "&7Active bans: &a%active%"
+    bans-24h:     "&7Bans 24h: &e%count%"
+    bans-7d:      "&7Bans 7d: &e%count%"
+    fingerprints: "&7Fingerprints: &f%count%"
+    players:      "&7Unique players: &f%count%"
+    whitelist:    "&7Whitelist entries: &f%count%"
+
+  purge:
+    expired:      "&a[HWIDBan] Purged &f%count% &aexpired bans."
+    fingerprints: "&a[HWIDBan] Purged &f%count% &afingerprints older than &f%days%d&a."
+
+  whitelist:
+    header:       "&8--- &6Whitelist Entries &7(%count%) &8---"
+    line:         "&8• &7[%type%] &f%value% &7by &f%admin%"
+    empty:        "&7No whitelist entries."
+    added:        "&a[HWIDBan] Added &f%type% %value% &ato whitelist."
+    removed:      "&a[HWIDBan] Removed &f%type% %value% &afrom whitelist."
+    not-found:    "&e[HWIDBan] No whitelist entry for &f%type% %value%&e."
+    invalid-type: "&c[HWIDBan] Invalid type. Use: IP, SUBNET, ISP, ASN, COUNTRY"
+
+  reload:
+    success: "&a[HWIDBan] Configuration reloaded."

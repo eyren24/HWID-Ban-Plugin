@@ -1,0 +1,238 @@
+# ╔══════════════════════════════════════════════════════════╗
+# ║              HWIDBan — Configurazione Completa           ║
+# ║  Tutti i messaggi supportano IridiumColorAPI:            ║
+# ║  &a, &#FF0000, <GRADIENT:FF0000>testo</GRADIENT:00FF00>  ║
+# ║  <SOLID:FF5555>testo</SOLID>, <RAINBOW>testo</RAINBOW>   ║
+# ╚══════════════════════════════════════════════════════════╝
+
+settings:
+  prefix: "<GRADIENT:FF0000>HWIDBan</GRADIENT:FFAA00> &8» &r"
+  default-language: "en_US"
+  debug: false
+  auto-register-fingerprint: true
+
+# ═══════════════════════════════════════════════
+#                   FINGERPRINT
+# ═══════════════════════════════════════════════
+fingerprint:
+  sources:
+    ip: true
+    subnet: true
+    isp: true
+    asn: true
+    country: true
+    city: true
+    client-brand: true     # Parzialmente falsificabile con client custom
+    mc-version: true
+    ping-pattern: true
+    packet-timing: true
+    screen-resolution: true
+    operating-system: true
+    language: true
+    uuid: false            # Disabilitato: cambia con account alternativo
+
+  subnet-mask: 20          # /20 copre ~4096 IP (tipico range ISP)
+  ping-sampling-ticks: 100
+  packet-timing-samples: 10
+  join-delay-ticks: 60     # Tick di attesa per ricevere il brand channel
+
+# ═══════════════════════════════════════════════
+#              SICUREZZA / ANTI-BYPASS
+# ═══════════════════════════════════════════════
+security:
+  # Watch mode: logga ma non kicka. Utile per testare prima del deploy.
+  watch-mode: false
+
+  # Rate limit: blocca IP che fanno troppi tentativi di login
+  rate-limit:
+    enabled: true
+    max-attempts: 10
+    window-seconds: 60
+
+  # Auto alt-ban: banna automaticamente se lo stesso fingerprint
+  # viene usato da troppi account distinti
+  auto-alt:
+    enabled: false
+    threshold: 4           # Numero di UUID diversi con stesso FP → ban auto
+    duration: "perm"       # Durata del ban automatico (es. 30d, perm)
+    reason: "Auto-ban: abuso multi-account (%count% account rilevati)"
+
+# ═══════════════════════════════════════════════
+#                    DATABASE
+# ═══════════════════════════════════════════════
+database:
+  type: "SQLITE"           # SQLITE | MYSQL
+
+  mysql:
+    host: "localhost"
+    port: 3306
+    database: "hwidban"
+    username: "root"
+    password: "password"
+    pool-size: 10
+    use-ssl: false
+
+  sqlite:
+    file: "hwidban.db"
+
+  tables:
+    bans: "hwidban_bans"
+    fingerprints: "hwidban_fingerprints"
+    whitelist: "hwidban_whitelist"
+
+# ═══════════════════════════════════════════════
+#                     GEOIP
+# ═══════════════════════════════════════════════
+geoip:
+  enabled: true
+  api-url: "http://ip-api.com/json/%ip%?fields=status,country,countryCode,city,isp,as,asname,query"
+  timeout-ms: 2000
+  cache-ttl-minutes: 60
+
+# ═══════════════════════════════════════════════
+#                 COMPORTAMENTO
+# ═══════════════════════════════════════════════
+behavior:
+  enabled: true
+  track-cps: true
+  track-movement: true
+  track-inventory: true
+  session-minutes: 10
+
+# ═══════════════════════════════════════════════
+#          SINCRONIZZAZIONE (Redis PubSub)
+# ═══════════════════════════════════════════════
+sync:
+  redis:
+    enabled: false
+    host: "localhost"
+    port: 6379
+    password: ""
+    channel: "hwidban-sync"
+
+# ═══════════════════════════════════════════════
+#             DISCORD WEBHOOK (opzionale)
+# ═══════════════════════════════════════════════
+discord:
+  enabled: false
+  webhook-url: ""
+  username: "HWIDBan"
+  avatar-url: ""           # URL immagine avatar (opzionale)
+
+# ═══════════════════════════════════════════════
+#                  INTEGRAZIONI
+# ═══════════════════════════════════════════════
+# LiteBans: quando un admin usa /ban, /tempban, /ipban → banna anche per HWID.
+# La logica al login (PreLoginListener) resta invariata: il check verifica
+# tutti i ban nel DB hwidban_bans (sia quelli emessi via /hwidban che via LiteBans).
+integrations:
+  litebans:
+    enabled: true
+    # Tipi LiteBans che propagano l'HWID ban. Default: ban + ipban.
+    # Valori validi: ban, ipban, mute (sconsigliato), warn (sconsigliato), kick (sconsigliato)
+    types: [ "ban", "ipban" ]
+    # Sincronizza la durata: /tempban 30d → HWID tempban 30d
+    sync-duration: true
+    # Quando si rimuove un ban LiteBans (/unban) → rimuove anche l'HWID ban
+    auto-unban: true
+    # Prefisso per il motivo del ban HWID (per distinguerlo da /hwidban diretti)
+    reason-prefix: "[LiteBans] "
+
+# ═══════════════════════════════════════════════
+#                    MESSAGGI
+# ═══════════════════════════════════════════════
+messages:
+  no-permission:  "%prefix%&cNon hai il permesso per questo comando."
+  player-not-found: "%prefix%&cGiocatore non trovato: &e%player%"
+  invalid-usage:  "%prefix%&cUso: &e%usage%"
+  reload-success: "%prefix%<SOLID:55FF55>Configurazione ricaricata!"
+
+  # ── BAN ──
+  ban:
+    success:        "%prefix%<SOLID:55FF55>%player% &7bannato. FP: &f%fingerprint%"
+    already-banned: "%prefix%&cQuesto fingerprint è già bannato."
+    reason-default: "Bannato da un amministratore."
+    broadcast:      "%prefix%&e%player% &7è stato bannato da &e%admin%&7. Motivo: &f%reason%"
+
+  # ── TEMP BAN ──
+  tempban:
+    success:   "%prefix%<SOLID:55FF55>%player% &7bannato per &e%duration%&7."
+    broadcast: "%prefix%&e%player% &7è stato bannato per &e%duration% &7da &e%admin%&7. Motivo: &f%reason%"
+
+  # ── UNBAN ──
+  unban:
+    success:   "%prefix%<SOLID:55FF55>Fingerprint rimosso dalla ban list."
+    not-banned: "%prefix%&cNessun ban attivo trovato."
+
+  # ── CHECK ──
+  check:
+    header: "%prefix%<GRADIENT:FF0000>═ Fingerprint di %player% ═</GRADIENT:FFAA00>"
+    line:   "&8  » &7%field%&8: &f%value%"
+    footer: "&8  » &7Hash&8: &f%fingerprint%"
+
+  # ── LIST ──
+  list:
+    header: "%prefix%<GRADIENT:FF0000>═ Ban HWID recenti ═</GRADIENT:FFAA00>"
+    line:   "&8» &e%player% &8| &7%fpshort% &8| &f%reason% &8(&7%admin%&8)"
+    empty:  "%prefix%&7Nessun ban registrato."
+
+  # ── ALT ──
+  alt:
+    header: "%prefix%<GRADIENT:FF0000>═ Alt di %player% (FP: %fpshort%) ═</GRADIENT:FFAA00>"
+    line:   "&8» &e%player% &8| &7UUID: &f%uuid% &8| &7Last: &f%last-seen% %banned%"
+    empty:  "&8  &7Nessun alt trovato."
+
+  # ── HISTORY ──
+  history:
+    header: "%prefix%<GRADIENT:FF0000>═ Storia FP di %player% (%count%) ═</GRADIENT:FFAA00>"
+    line:   "&8» &f%fpshort% %banned% &8| &7Prima: &f%first-seen% &8| &7Ultimo: &f%last-seen%"
+    empty:  "&8  &7Nessuna registrazione trovata."
+
+  # ── INFO ──
+  info:
+    header: "%prefix%<GRADIENT:FF0000>═ Info: %player% ═</GRADIENT:FFAA00>"
+    line:   "&8  » &7%field%&8: &f%value%"
+
+  # ── STATS ──
+  stats:
+    header: "%prefix%<GRADIENT:FF0000>═ Statistiche HWIDBan ═</GRADIENT:FFAA00>"
+    line:   "&8  » &7%label%&8: &e%value%"
+    footer: "&8  &7─────────────────────────────"
+
+  # ── PURGE ──
+  purge:
+    expired:      "%prefix%<SOLID:55FF55>Rimossi &e%count% &aban scaduti."
+    fingerprints: "%prefix%<SOLID:55FF55>Rimossi &e%count% &afingerprint più vecchi di &e%days% &agiorni."
+
+  # ── WHITELIST ──
+  whitelist:
+    header:       "%prefix%<GRADIENT:FF0000>═ Whitelist (%count% voci) ═</GRADIENT:FFAA00>"
+    line:         "&8» &7[%type%] &f%value% &8(&7%admin% — %date%&8)"
+    empty:        "&8  &7La whitelist è vuota."
+    added:        "%prefix%<SOLID:55FF55>Aggiunto alla whitelist: &e[%type%] %value%"
+    removed:      "%prefix%<SOLID:55FF55>Rimosso dalla whitelist: &e[%type%] %value%"
+    not-found:    "%prefix%&cVoce non trovata nella whitelist."
+    error:        "%prefix%&cErrore durante l'operazione."
+    invalid-type: "%prefix%&cTipo non valido. Usa: &e%valid%"
+
+  # ── KICK ──
+  kick:
+    rate-limited: "&cTroppi tentativi di connessione. Riprova tra poco."
+    banned: |
+      <GRADIENT:FF0000>⚠ SEI STATO BANNATO ⚠</GRADIENT:FF5500>
+
+      &7Motivo&8: &f%reason%
+      &7Bannato da&8: &f%admin%
+      &7Data&8: &f%date%
+      &7Fingerprint&8: &8%fingerprint%
+
+      &8Il ban è sincronizzato su tutta la rete.
+    tempbanned: |
+      <GRADIENT:FF5500>⚠ BAN TEMPORANEO ⚠</GRADIENT:FFAA00>
+
+      &7Motivo&8: &f%reason%
+      &7Bannato da&8: &f%admin%
+      &7Data&8: &f%date%
+      &7Scade tra&8: &e%duration%
+
+      &8Il ban è sincronizzato su tutta la rete.

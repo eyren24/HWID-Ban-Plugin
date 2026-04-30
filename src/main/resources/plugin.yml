@@ -1,0 +1,6 @@
+name: HWIDBan
+version: '${version}'
+
+main: com.eyren.hWIDBan.Main
+api-version: '26.1.2'
+load: STARTUP
