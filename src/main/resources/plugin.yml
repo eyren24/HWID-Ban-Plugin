@@ -1,6 +1,164 @@
 name: HWIDBan
-version: '${version}'
-
+version: '${project.version}'
 main: com.eyren.hWIDBan.Main
-api-version: '26.1.2'
+api-version: '1.19'
 load: STARTUP
+author: Eyren
+description: Server-side HWID ban system based on multi-factor fingerprinting.
+softdepend: [LiteBans]
+
+commands:
+  hwidban:
+    description: Banna un giocatore online per fingerprint permanente.
+    usage: /hwidban <player> [reason]
+    aliases: [hban, fpban]
+    permission: hwidban.ban
+    permission-message: "§cPermesso mancante: hwidban.ban"
+
+  hwidtempban:
+    description: Banna un giocatore per un tempo limitato.
+    usage: /hwidtempban <player> <1d2h30m|perm> [reason]
+    aliases: [htempban, fptempban]
+    permission: hwidban.tempban
+    permission-message: "§cPermesso mancante: hwidban.tempban"
+
+  hwidunban:
+    description: Rimuove un ban tramite nome o hash fingerprint.
+    usage: /hwidunban <player|fingerprint>
+    aliases: [hunban, fpunban]
+    permission: hwidban.unban
+    permission-message: "§cPermesso mancante: hwidban.unban"
+
+  hwidcheck:
+    description: Mostra il fingerprint corrente di un giocatore online.
+    usage: /hwidcheck <player>
+    aliases: [hcheck, fpcheck]
+    permission: hwidban.check
+    permission-message: "§cPermesso mancante: hwidban.check"
+
+  hwidlist:
+    description: Elenca gli ultimi ban registrati.
+    usage: /hwidlist [limit]
+    aliases: [hlist, fplist]
+    permission: hwidban.list
+    permission-message: "§cPermesso mancante: hwidban.list"
+
+  hwidalt:
+    description: Trova account alternativi che condividono lo stesso fingerprint.
+    usage: /hwidalt <player>
+    aliases: [halt, fpalt]
+    permission: hwidban.alt
+    permission-message: "§cPermesso mancante: hwidban.alt"
+
+  hwidhistory:
+    description: Mostra la cronologia fingerprint di un giocatore.
+    usage: /hwidhistory <player> [limit]
+    aliases: [hhistory, fphist]
+    permission: hwidban.history
+    permission-message: "§cPermesso mancante: hwidban.history"
+
+  hwidinfo:
+    description: Mostra informazioni complete su un giocatore (ban, FP, UUID...).
+    usage: /hwidinfo <player>
+    aliases: [hinfo, fpinfo]
+    permission: hwidban.info
+    permission-message: "§cPermesso mancante: hwidban.info"
+
+  hwidstats:
+    description: Mostra statistiche globali del database ban.
+    usage: /hwidstats
+    aliases: [hstats, fpstats]
+    permission: hwidban.stats
+    permission-message: "§cPermesso mancante: hwidban.stats"
+
+  hwidpurge:
+    description: Elimina fingerprint vecchi o ban scaduti dal database.
+    usage: /hwidpurge <fingerprints <giorni> | expired>
+    aliases: [hpurge, fppurge]
+    permission: hwidban.purge
+    permission-message: "§cPermesso mancante: hwidban.purge"
+
+  hwidwhitelist:
+    description: Gestisce la whitelist IP/Subnet/ISP/ASN/Country.
+    usage: /hwidwhitelist <add|remove|list> [type] [value]
+    aliases: [hwl, fpwl]
+    permission: hwidban.whitelist
+    permission-message: "§cPermesso mancante: hwidban.whitelist"
+
+  hwidreload:
+    description: Ricarica la configurazione senza riavviare.
+    usage: /hwidreload
+    aliases: [hreload]
+    permission: hwidban.reload
+    permission-message: "§cPermesso mancante: hwidban.reload"
+
+  hwidhelp:
+    description: Mostra l'elenco dei comandi HWIDBan disponibili.
+    usage: /hwidhelp
+    aliases: [hhelp, fphelp]
+
+permissions:
+  hwidban.admin:
+    description: >
+      Permesso wildcard: concede automaticamente tutti i comandi HWIDBan
+      (escluso bypass che non deve mai essere dato ad utenti normali).
+    default: op
+    children:
+      hwidban.ban:       true
+      hwidban.tempban:   true
+      hwidban.unban:     true
+      hwidban.check:     true
+      hwidban.list:      true
+      hwidban.alt:       true
+      hwidban.history:   true
+      hwidban.info:      true
+      hwidban.stats:     true
+      hwidban.purge:     true
+      hwidban.whitelist: true
+      hwidban.reload:    true
+      hwidban.notify:    true
+
+  hwidban.ban:
+    description: Banna un giocatore in modo permanente.
+    default: false
+  hwidban.tempban:
+    description: Banna un giocatore per un periodo limitato.
+    default: false
+  hwidban.unban:
+    description: Rimuove un ban HWID.
+    default: false
+  hwidban.check:
+    description: Visualizza il fingerprint corrente di un player.
+    default: false
+  hwidban.list:
+    description: Elenca i ban recenti.
+    default: false
+  hwidban.alt:
+    description: Trova account alternativi per fingerprint condiviso.
+    default: false
+  hwidban.history:
+    description: Visualizza la cronologia fingerprint di un player.
+    default: false
+  hwidban.info:
+    description: Visualizza info complete (ban, UUID, stato) di un player.
+    default: false
+  hwidban.stats:
+    description: Visualizza statistiche globali del database.
+    default: false
+  hwidban.purge:
+    description: Elimina fingerprint vecchi o ban scaduti.
+    default: false
+  hwidban.whitelist:
+    description: Gestisce la whitelist di IP/Subnet/ISP/ASN/Paese.
+    default: false
+  hwidban.reload:
+    description: Ricarica la configurazione del plugin.
+    default: false
+  hwidban.notify:
+    description: Riceve i broadcast quando un ban viene emesso o rimosso.
+    default: false
+  hwidban.bypass:
+    description: >
+      Salta tutti i controlli HWID ban.
+      ⚠ Non concedere mai a giocatori normali.
+    default: false
